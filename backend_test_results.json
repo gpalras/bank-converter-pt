@@ -1,0 +1,86 @@
+{
+  "total_tests": 13,
+  "passed_tests": 13,
+  "failed_tests": 0,
+  "success_rate": 100.0,
+  "test_results": [
+    {
+      "test": "User Registration",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-10-16T10:28:23.675468"
+    },
+    {
+      "test": "User Login",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-10-16T10:28:23.943304"
+    },
+    {
+      "test": "Get Current User",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-10-16T10:28:23.983316"
+    },
+    {
+      "test": "Get Subscription Plans",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-10-16T10:28:24.020991"
+    },
+    {
+      "test": "Subscription Plans Content",
+      "success": true,
+      "details": "All plans present",
+      "timestamp": "2025-10-16T10:28:24.021592"
+    },
+    {
+      "test": "Get Current Subscription",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-10-16T10:28:24.061311"
+    },
+    {
+      "test": "Subscription Fields",
+      "success": true,
+      "details": "All required fields present",
+      "timestamp": "2025-10-16T10:28:24.061902"
+    },
+    {
+      "test": "Create Checkout Session",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-10-16T10:28:24.588111"
+    },
+    {
+      "test": "Checkout Session Content",
+      "success": true,
+      "details": "URL and session_id present",
+      "timestamp": "2025-10-16T10:28:24.588802"
+    },
+    {
+      "test": "Get Conversions",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-10-16T10:28:24.627459"
+    },
+    {
+      "test": "File Upload Endpoint",
+      "success": true,
+      "details": "Status: 422",
+      "timestamp": "2025-10-16T10:28:24.661871"
+    },
+    {
+      "test": "Invalid Endpoint",
+      "success": true,
+      "details": "Status: 404",
+      "timestamp": "2025-10-16T10:28:24.737365"
+    },
+    {
+      "test": "Invalid Token",
+      "success": true,
+      "details": "Status: 401",
+      "timestamp": "2025-10-16T10:28:24.777524"
+    }
+  ]
+}
