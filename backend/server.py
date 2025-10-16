@@ -518,17 +518,17 @@ async def download_excel(conversion_id: str, current_user: dict = Depends(get_cu
         filename=f"{conversion['original_filename']}.xlsx",
     )
 
-# Health (simples) — útil para Render
 @app.get("/health")
 async def health():
     db_ok = False
+    err = None
     try:
         if db:
             await db.command("ping")
             db_ok = True
-    except Exception:
-        db_ok = False
-    return {"ok": True, "db": db_ok}
+    except Exception as e:
+        err = str(e)
+    return {"ok": True, "db": db_ok, "error": err}
 
 # Include router & middleware
 app.include_router(api_router)
