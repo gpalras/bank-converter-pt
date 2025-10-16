@@ -54,9 +54,10 @@ JWT_ALGORITHM = "HS256"
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
 
-# Upload directory (nota: em Render é efémero)
-UPLOAD_DIR = Path("/app/backend/uploads")
-UPLOAD_DIR.mkdir(exist_ok=True, parents=True)
+# Upload directory (usamos /tmp por ser sempre escrevível no Render)
+DEFAULT_UPLOAD_BASE = Path(os.getenv("UPLOAD_DIR", "/tmp/bank-converter-pt/uploads"))
+UPLOAD_DIR = DEFAULT_UPLOAD_BASE
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create the main app
 app = FastAPI()
