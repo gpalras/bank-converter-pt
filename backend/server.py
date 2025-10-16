@@ -535,6 +535,17 @@ async def download_excel(conversion_id: str, current_user: dict = Depends(get_cu
     
     return FileResponse(excel_path, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename=f"{conversion['original_filename']}.xlsx")
 
+    @app.get("/health")
+async def health():
+    db_ok = False
+    try:
+        if db:
+            await db.command("ping")
+            db_ok = True
+    except Exception:
+        db_ok = False
+    return {"ok": True, "db": db_ok}
+
 # Include router
 app.include_router(api_router)
 
