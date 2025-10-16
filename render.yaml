@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: bank-converter-pt
+    env: python
+    plan: free
+    pythonVersion: 3.11
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "cd backend && gunicorn -k uvicorn.workers.UvicornWorker server:app --bind 0.0.0.0:$PORT"
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: MONGO_URL
+        sync: false   # definirás no painel do Render (segredo)
+      - key: DB_NAME
+        value: bankconverter
+      - key: JWT_SECRET
+        sync: false   # definirás no painel do Render (segredo)
+      - key: CORS_ORIGINS
+        value: "*"
+      # Caso uses:
+      # - key: EMERGENT_LLM_KEY
+      #   sync: false
+      # - key: STRIPE_API_KEY
+      #   sync: false
