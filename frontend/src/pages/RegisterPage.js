@@ -44,7 +44,7 @@ const RegisterPage = ({ onLogin }) => {
         <Card className="auth-card">
           <CardHeader>
             <CardTitle data-testid="register-title">Criar Conta</CardTitle>
-            <CardDescription data-testid="register-description">Comece com 50 páginas grátis por mês</CardDescription>
+            <CardDescription data-testid="register-description">Comece com 5 conversões grátis por mês</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="auth-form" data-testid="register-form">

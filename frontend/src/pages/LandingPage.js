@@ -98,7 +98,7 @@ const LandingPage = ({ user }) => {
             </div>
             <div className="hero-badge">
               <Check size={16} />
-              <span>50 páginas grátis por mês • Sem cartão de crédito</span>
+              <span>5 conversões grátis por mês • Sem cartão de crédito</span>
             </div>
           </div>
         </div>
@@ -141,7 +141,7 @@ const LandingPage = ({ user }) => {
         <div className="container">
           <div className="cta-content">
             <h2 data-testid="cta-title">Pronto para simplificar sua contabilidade?</h2>
-            <p data-testid="cta-subtitle">Comece agora com 50 páginas grátis por mês</p>
+            <p data-testid="cta-subtitle">Comece agora com 5 conversões grátis por mês</p>
             <Button 
               size="lg" 
               onClick={() => navigate(user ? '/dashboard' : '/register')}
