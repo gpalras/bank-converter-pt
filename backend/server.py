@@ -48,7 +48,7 @@ api_router = APIRouter(prefix="/api")
 
 # Subscription Plans
 SUBSCRIPTION_PLANS = {
-    "free": {"name": "Grátis", "pages_limit": 50, "price": 0.0, "currency": "eur"},
+    "free": {"name": "Gratuito", "pages_limit": 50, "price": 0.0, "currency": "eur"},
     "starter": {"name": "Inicial", "pages_limit": 400, "price": 30.0, "currency": "eur"},
     "pro": {"name": "Profissional", "pages_limit": 4000, "price": 99.0, "currency": "eur"}
 }
