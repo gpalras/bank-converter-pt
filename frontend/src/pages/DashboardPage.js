@@ -138,7 +138,7 @@ const DashboardPage = ({ user, onLogout }) => {
           {/* Subscription Card */}
           <Card className="subscription-card" data-testid="subscription-card">
             <CardHeader>
-              <CardTitle>Plano Atual: {subscription?.plan_type === 'free' ? 'Grátis' : subscription?.plan_type === 'starter' ? 'Inicial' : 'Profissional'}</CardTitle>
+              <CardTitle>Plano Atual: {subscription?.plan_type === 'free' ? 'Gratuito' : subscription?.plan_type === 'starter' ? 'Inicial' : 'Profissional'}</CardTitle>
               <CardDescription>Uso de páginas este mês</CardDescription>
             </CardHeader>
             <CardContent>
