@@ -17,7 +17,7 @@ const PricingPage = ({ user }) => {
   const plans = [
     {
       id: 'free',
-      name: 'Grátis',
+      name: 'Gratuito',
       price: 0,
       pages: 50,
       features: [
