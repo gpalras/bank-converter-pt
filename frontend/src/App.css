@@ -25,3 +25,5 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 1.25rem;
   color: #4a5568;
 }
+/* Hide leftover Emergent badges/overlays */
+.emergent-badge,[data-emergent-badge],a[href*="emergent.sh"],[class*="emergent"],[id*="emergent"]{display:none!important;visibility:hidden!important;}
