@@ -78,3 +78,8 @@ agenthub/agents/youtube/db
 
 # Mobile development
 android-sdk/ 
+
+# Environment files (to protect secrets)
+.env
+*.env
+backend/.env
