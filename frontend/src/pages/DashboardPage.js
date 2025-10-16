@@ -104,9 +104,12 @@ const DashboardPage = ({ user, onLogout }) => {
     }
   };
 
-  const usagePercentage = subscription
-    ? (subscription.pages_used_this_month / subscription.pages_limit) * 100
-    : 0;
+  const isFree = subscription?.plan_type === 'free';
+const used = isFree ? (subscription?.conversions_used_this_month || 0)
+                    : (subscription?.pages_used_this_month || 0);
+const limit = isFree ? (subscription?.conversions_limit ?? 5)
+                     : (subscription?.pages_limit || 0);
+const usagePercentage = limit ? (used / limit) * 100 : 0;
 
   if (loading) {
     return <div className="loading-screen">Carregando...</div>;
@@ -139,15 +142,15 @@ const DashboardPage = ({ user, onLogout }) => {
           <Card className="subscription-card" data-testid="subscription-card">
             <CardHeader>
               <CardTitle>Plano Atual: {subscription?.plan_type === 'free' ? 'Gratuito' : subscription?.plan_type === 'starter' ? 'Inicial' : 'Profissional'}</CardTitle>
-              <CardDescription>Uso de páginas este mês</CardDescription>
+              <CardDescription>{isFree ? 'Utilizações gratuitas este mês' : 'Páginas utilizadas este mês'}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="usage-stats">
                 <div className="usage-text" data-testid="usage-text">
-                  <span className="usage-current">{subscription?.pages_used_this_month || 0}</span>
+                  <span className="usage-current">{used}</span>
                   <span className="usage-separator">/</span>
-                  <span className="usage-limit">{subscription?.pages_limit || 0}</span>
-                  <span className="usage-label">páginas</span>
+                  <span className="usage-limit">{limit}</span>
+                  <span className="usage-label">{isFree ? 'utilizações' : 'páginas'}</span>
                 </div>
                 <Progress value={usagePercentage} className="usage-progress" data-testid="usage-progress" />
               </div>

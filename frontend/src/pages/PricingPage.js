@@ -15,48 +15,11 @@ const PricingPage = ({ user }) => {
   const [loading, setLoading] = useState({});
 
   const plans = [
-    {
-      id: 'free',
-      name: 'Gratuito',
-      price: 0,
-      pages: 50,
-      features: [
-        '50 páginas por mês',
-        'Suporte para BPI, Millennium e Caixa Geral',
-        'Exportação CSV e Excel',
-        'Categorização fiscal básica'
-      ],
-      current: true
-    },
-    {
-      id: 'starter',
-      name: 'Inicial',
-      price: 30,
-      pages: 400,
-      features: [
-        '400 páginas por mês',
-        'Suporte para todos os bancos',
-        'Exportação CSV e Excel',
-        'Categorização fiscal avançada',
-        'Suporte prioritário'
-      ],
-      popular: true
-    },
-    {
-      id: 'pro',
-      name: 'Profissional',
-      price: 99,
-      pages: 4000,
-      features: [
-        '4.000 páginas por mês',
-        'Suporte para todos os bancos',
-        'Exportação CSV e Excel',
-        'Categorização fiscal completa',
-        'Suporte prioritário 24/7',
-        'API de integração'
-      ]
-    }
-  ];
+  { id: 'starter',   name: 'Starter',      price: 30, pages: 400,  features: ['400 páginas / mês', 'Exportação CSV e Excel'] },
+  { id: 'pro',       name: 'Professional', price: 60, pages: 1000, features: ['1000 páginas / mês', 'Exportação CSV e Excel'] },
+  { id: 'business',  name: 'Business',     price: 99, pages: 4000, features: ['4000 páginas / mês', 'Exportação CSV e Excel'] },
+  { id: 'enterprise',name: 'Enterprise',   price: null, pages: null, features: ['Precisa de mais? Contacte-nos.'] },
+];
 
   const handleSubscribe = async (planId) => {
     if (!user) {

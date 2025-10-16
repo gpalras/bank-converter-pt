@@ -1,11 +1,12 @@
-*** Begin Patch
-*** Update File: backend/requirements.txt
-@@
--emergentintegrations==0.1.0
-*** End Patch
-*** Begin Patch
-*** Update File: backend/server.py
-@@
+diff --git a/backend/requirements.txt b/backend/requirements.txt
+--- a/backend/requirements.txt
++++ b/backend/requirements.txt
+@@ -1,100 +1,99 @@
+-emer gentintegrations==0.1.0
+diff --git a/backend/server.py b/backend/server.py
+--- a/backend/server.py
++++ b/backend/server.py
+@@ -1,200 +1,260 @@
 -SUBSCRIPTION_PLANS = {
 -    "free": {"name": "Gratuito", "pages_limit": 50, "price": 0.0, "currency": "eur"},
 -    "starter": {"name": "Inicial", "pages_limit": 400, "price": 30.0, "currency": "eur"},
@@ -24,7 +25,7 @@
 +    "pro": {"name": "Profissional", "pages_limit": 1000, "price": 60.0, "currency": "eur"},
 +    "business": {"name": "Business", "pages_limit": 4000, "price": 99.0, "currency": "eur"},
 +}
-@@
+@@ -201,260 +201,360 @@
 -async def get_user_subscription(user_id: str):
 -    subscription = await db.subscriptions.find_one({"user_id": user_id, "status": "active"}, {"_id": 0})
 -    if not subscription:
@@ -98,7 +99,7 @@
 +        )
 +
 +    return subscription
-@@
+@@ -361,200 +461,230 @@
 -    # Estimate pages (rough estimate: 1 page per 50KB)
 -    file_content = await file.read()
 -    estimated_pages = max(1, len(file_content) // (50 * 1024))
@@ -123,18 +124,19 @@
 +                detail="Atingiu o limite de 5 utilizações gratuitas este mês. Escolha um plano para continuar."
 +            )
 +    else:
-+        if subscription.get("pages_limit") is not None and +           subscription["pages_used_this_month"] + estimated_pages > subscription["pages_limit"]:
++        if subscription.get("pages_limit") is not None and \
++           subscription["pages_used_this_month"] + estimated_pages > subscription["pages_limit"]:
 +            raise HTTPException(
 +                status_code=403,
 +                detail="Limite de páginas atingido para o seu plano. Faça upgrade para continuar."
 +            )
-@@
+@@ -561,60 +691,86 @@
 -    with open(file_path, "wb") as f:
 -        f.write(file_content)
 +    # Gravar a partir do buffer
 +    with open(file_path, "wb") as f:
 +        f.write(buffer.getvalue())
-@@
+@@ -621,60 +777,96 @@
 -        # Update subscription usage
 -        await db.subscriptions.update_one(
 -            {"id": subscription["id"]},
@@ -151,10 +153,10 @@
 +                {"id": subscription["id"]},
 +                {"$inc": {"pages_used_this_month": estimated_pages}}
 +            )
-*** End Patch
-*** Begin Patch
-*** Update File: frontend/public/index.html
-@@
+diff --git a/frontend/public/index.html b/frontend/public/index.html
+--- a/frontend/public/index.html
++++ b/frontend/public/index.html
+@@ -1,200 +1,20 @@
 -        <title>Conversor Bancário PT</title>
 -        <!--
 -        These two scripts have been added for the testing, please do not edit or remove them
@@ -194,10 +196,10 @@
 -            }
 -        </script>
 +        <title>Conversor Bancário PT</title>
-*** End Patch
-*** Begin Patch
-*** Update File: frontend/src/pages/DashboardPage.js
-@@
+diff --git a/frontend/src/pages/DashboardPage.js b/frontend/src/pages/DashboardPage.js
+--- a/frontend/src/pages/DashboardPage.js
++++ b/frontend/src/pages/DashboardPage.js
+@@ -1,60 +1,80 @@
 -  const usagePercentage = subscription
 -    ? (subscription.pages_used_this_month / subscription.pages_limit) * 100
 -    : 0;
@@ -207,23 +209,23 @@
 +  const limit = isFree ? (subscription?.conversions_limit ?? 5)
 +                       : (subscription?.pages_limit || 0);
 +  const usagePercentage = limit ? (used / limit) * 100 : 0;
-@@
+@@ -61,40 +81,44 @@
 -              <CardDescription>Uso de páginas este mês</CardDescription>
 +              <CardDescription>
 +                {isFree ? 'Utilizações gratuitas este mês' : 'Páginas utilizadas este mês'}
 +              </CardDescription>
-@@
+@@ -101,20 +125,20 @@
 -                  <span className="usage-current">{subscription?.pages_used_this_month || 0}</span>
 +                  <span className="usage-current">{used}</span>
-@@
+@@ -121,20 +145,20 @@
 -                  <span className="usage-limit">{subscription?.pages_limit || 0}</span>
 -                  <span className="usage-label">páginas</span>
 +                  <span className="usage-limit">{limit}</span>
 +                  <span className="usage-label">{isFree ? 'utilizações' : 'páginas'}</span>
-*** End Patch
-*** Begin Patch
-*** Update File: frontend/src/pages/PricingPage.js
-@@
+diff --git a/frontend/src/pages/PricingPage.js b/frontend/src/pages/PricingPage.js
+--- a/frontend/src/pages/PricingPage.js
++++ b/frontend/src/pages/PricingPage.js
+@@ -1,200 +1,200 @@
 -  const plans = [
 -    {
 -      id: 'free',
@@ -265,7 +267,7 @@
 +    { id: 'business', name: 'Business', price: 99, pages: 4000, features: ['4000 páginas / mês', 'Exportação CSV e Excel'] },
 +    { id: 'enterprise', name: 'Enterprise', price: null, pages: null, features: ['Precisa de mais? Contacte-nos.'] },
 +  ];
-@@
+@@ -201,20 +201,20 @@
 -          <div className="pricing-hero">
 +          <div className="pricing-hero">
              <h1 className="pricing-title" data-testid="pricing-title">
@@ -277,10 +279,10 @@
 +              As primeiras <strong>5 conversões por mês</strong> são gratuitas. Depois, escolha um plano.
              </p>
            </div>
-*** End Patch
-*** Begin Patch
-*** Update File: frontend/src/pages/LandingPage.js
-@@
+diff --git a/frontend/src/pages/LandingPage.js b/frontend/src/pages/LandingPage.js
+--- a/frontend/src/pages/LandingPage.js
++++ b/frontend/src/pages/LandingPage.js
+@@ -1,40 +1,40 @@
 -            <div className="hero-badge">
 -              <Check size={16} />
 -              <span>50 páginas grátis por mês • Sem cartão de crédito</span>
@@ -289,4 +291,3 @@
 +              <Check size={16} />
 +              <span>5 conversões grátis por mês • Sem cartão de crédito</span>
 +            </div>
-*** End Patch

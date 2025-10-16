@@ -98,7 +98,7 @@ const LandingPage = ({ user }) => {
             </div>
             <div className="hero-badge">
               <Check size={16} />
-              <span>50 páginas grátis por mês • Sem cartão de crédito</span>
+              <span>5 conversões grátis por mês • Sem cartão de crédito</span>
             </div>
           </div>
         </div>

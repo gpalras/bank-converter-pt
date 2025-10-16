@@ -65,7 +65,19 @@ api_router = APIRouter(prefix="/api")
 
 # Subscription Plans
 SUBSCRIPTION_PLANS = {
-    "free": {"name": "Gratuito", "pages_limit": 50, "price": 0.0, "currency": "eur"},
+    # 5 utilizações (conversões) gratuitas por mês
+    "free": {
+        "name": "Gratuito",
+        "conversions_limit": 5,
+        "pages_limit": None,
+        "price": 0.0,
+        "currency": "eur",
+    },
+    "starter": {"name": "Inicial", "pages_limit": 400, "price": 30.0, "currency": "eur"},
+    "pro": {"name": "Profissional", "pages_limit": 1000, "price": 60.0, "currency": "eur"},
+    "business": {"name": "Business", "pages_limit": 4000, "price": 99.0, "currency": "eur"},
+}
+,
     "starter": {"name": "Inicial", "pages_limit": 400, "price": 30.0, "currency": "eur"},
     "pro": {"name": "Profissional", "pages_limit": 4000, "price": 99.0, "currency": "eur"},
 }
@@ -150,21 +162,62 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Invalid token")
 
 async def get_user_subscription(user_id: str):
+    """Obtem a subscrição ativa. Se não existir, cria a gratuita.
+    Repõe contadores no início de cada novo período mensal e faz backfill
+    dos novos campos de conversões quando necessário.
+    """
     subscription = await db.subscriptions.find_one({"user_id": user_id, "status": "active"}, {"_id": 0})
     if not subscription:
+        now = datetime.now(timezone.utc)
         subscription = {
             "id": str(uuid.uuid4()),
             "user_id": user_id,
             "plan_type": "free",
             "status": "active",
-            "pages_limit": 50,
+            "pages_limit": None,
             "pages_used_this_month": 0,
-            "current_period_start": datetime.now(timezone.utc).isoformat(),
-            "current_period_end": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+            "conversions_limit": 5,
+            "conversions_used_this_month": 0,
+            "current_period_start": now.isoformat(),
+            "current_period_end": (now + timedelta(days=30)).isoformat()
         }
         await db.subscriptions.insert_one(subscription)
-    return subscription
+        return subscription
 
+    # Reset mensal se terminou o período atual
+    try:
+        period_end = datetime.fromisoformat(subscription["current_period_end"])
+    except Exception:
+        period_end = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    if now > period_end:
+        updates = {
+            "pages_used_this_month": 0,
+            "conversions_used_this_month": 0,
+            "current_period_start": now.isoformat(),
+            "current_period_end": (now + timedelta(days=30)).isoformat(),
+        }
+        await db.subscriptions.update_one({"id": subscription["id"]}, {"$set": updates})
+        subscription.update(updates)
+
+    # Backfill de campos novos
+    changed = False
+    if "conversions_limit" not in subscription:
+        subscription["conversions_limit"] = 5 if subscription.get("plan_type") == "free" else None
+        changed = True
+    if "conversions_used_this_month" not in subscription:
+        subscription["conversions_used_this_month"] = 0
+        changed = True
+    if changed:
+        await db.subscriptions.update_one(
+            {"id": subscription["id"]},
+            {"$set": {
+                "conversions_limit": subscription["conversions_limit"],
+                "conversions_used_this_month": subscription["conversions_used_this_month"],
+            }}
+        )
+
+    return subscription
 async def extract_transactions_from_pdf(file_path: str, bank_name: str) -> Dict:
     """Extract transactions from PDF using Gemini AI (opcional)"""
     # Guard: se não estiver configurado, devolve 503
@@ -424,15 +477,29 @@ async def upload_statement(
     subscription = await get_user_subscription(current_user["id"])
 
     file_content = await file.read()
-    estimated_pages = max(1, len(file_content) // (50 * 1024))
+from io import BytesIO
+buffer = BytesIO(file_content)
+estimated_pages = max(1, len(file_content) // (50 * 1024))
 
-    if subscription["pages_used_this_month"] + estimated_pages > subscription["pages_limit"]:
-        raise HTTPException(status_code=403, detail="Limite de páginas atingido. Faça upgrade do seu plano.")
-
-    file_id = str(uuid.uuid4())
+    if subscription.get("plan_type") == "free":
+        limit = subscription.get("conversions_limit", 5)
+        used = subscription.get("conversions_used_this_month", 0)
+        if used >= limit:
+            raise HTTPException(
+                status_code=403,
+                detail="Atingiu o limite de 5 utilizações gratuitas este mês. Escolha um plano para continuar."
+            )
+    else:
+        if subscription.get("pages_limit") is not None and \
+           subscription["pages_used_this_month"] + estimated_pages > subscription["pages_limit"]:
+            raise HTTPException(
+                status_code=403,
+                detail="Limite de páginas atingido para o seu plano. Faça upgrade para continuar."
+            )
+file_id = str(uuid.uuid4())
     file_path = UPLOAD_DIR / f"{file_id}.pdf"
     with open(file_path, "wb") as f:
-        f.write(file_content)
+        f.write(buffer.getvalue())
 
     conversion = {
         "id": file_id,
