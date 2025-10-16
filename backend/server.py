@@ -153,36 +153,47 @@ async def extract_transactions_from_pdf(file_path: str, bank_name: str) -> Dict:
     """Extract transactions from PDF using Gemini AI"""
     
     prompt = f"""
-Analise este extrato bancário do banco {bank_name} (Portugal) e extraia todas as transações.
+Analise este extrato bancário do banco {bank_name} (Portugal) e extraia TODAS as transações visíveis.
 
-Retorne um JSON estruturado com:
-1. Lista de transações com: data, descrição, valor, tipo (débito/crédito)
-2. Saldo inicial e final (se disponível)
-3. Categorias fiscais portuguesas (IRS, Segurança Social, etc.) quando identificáveis
+INSTRUÇÕES IMPORTANTES:
+1. Extraia TODAS as transações que encontrar no documento
+2. Para cada transação, identifique: data, descrição completa, valor (débito ou crédito)
+3. Identifique o saldo inicial e final se visível
+4. Se possível, identifique categorias fiscais portuguesas (IRS, Segurança Social)
 
-Formato esperado:
+Retorne APENAS um objeto JSON válido, sem texto adicional, neste formato exato:
 {{
   "banco": "{bank_name}",
+  "conta": "número da conta se visível",
   "periodo": "DD/MM/YYYY - DD/MM/YYYY",
   "saldo_inicial": 0.00,
   "saldo_final": 0.00,
   "transacoes": [
     {{
       "data": "DD/MM/YYYY",
-      "descricao": "descrição",
+      "descricao": "descrição completa da transação",
       "valor": 0.00,
-      "tipo": "débito ou crédito",
-      "categoria_fiscal": "IRS/Segurança Social/Outro/null"
+      "tipo": "débito",
+      "categoria_fiscal": null
+    }},
+    {{
+      "data": "DD/MM/YYYY", 
+      "descricao": "descrição completa",
+      "valor": 0.00,
+      "tipo": "crédito",
+      "categoria_fiscal": null
     }}
   ]
 }}
+
+IMPORTANTE: Retorne APENAS o JSON, sem explicações ou texto adicional.
 """
     
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=str(uuid.uuid4()),
-            system_message="Você é um assistente especializado em análise de extratos bancários portugueses."
+            system_message="És um assistente especializado em análise de extratos bancários portugueses. Retorna APENAS JSON válido, sem texto adicional."
         ).with_model("gemini", "gemini-2.0-flash")
         
         pdf_file = FileContentWithMimeType(
@@ -197,14 +208,40 @@ Formato esperado:
         
         response = await chat.send_message(user_message)
         
-        # Parse JSON from response
+        # Parse JSON from response - handle various formats
         response_text = response.strip()
+        
+        # Remove markdown code blocks
         if "```json" in response_text:
             response_text = response_text.split("```json")[1].split("```")[0].strip()
         elif "```" in response_text:
             response_text = response_text.split("```")[1].split("```")[0].strip()
         
-        extracted_data = json.loads(response_text)
+        # Remove any leading/trailing text before/after JSON
+        # Find the first { and last }
+        start_idx = response_text.find('{')
+        end_idx = response_text.rfind('}')
+        
+        if start_idx != -1 and end_idx != -1:
+            response_text = response_text[start_idx:end_idx+1]
+        
+        # Try to parse JSON
+        try:
+            extracted_data = json.loads(response_text)
+        except json.JSONDecodeError as je:
+            logging.error(f"JSON parse error: {str(je)}")
+            logging.error(f"Response text: {response_text[:500]}")
+            
+            # Return a basic structure with error info
+            extracted_data = {
+                "banco": bank_name,
+                "periodo": "Não identificado",
+                "saldo_inicial": 0.0,
+                "saldo_final": 0.0,
+                "transacoes": [],
+                "erro": "Erro ao processar resposta da IA. Por favor, tente novamente."
+            }
+        
         return extracted_data
     except Exception as e:
         logging.error(f"Error extracting PDF: {str(e)}")
