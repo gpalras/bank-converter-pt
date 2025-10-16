@@ -20,6 +20,24 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithM
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
 import pandas as pd
 
+# --- Optional integrations (LLM & Payments) ---
+HAS_LLM = False
+HAS_STRIPE = False
+
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType
+    HAS_LLM = True
+except Exception:
+    HAS_LLM = False
+
+try:
+    from emergentintegrations.payments.stripe.checkout import (
+        StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
+    )
+    HAS_STRIPE = True
+except Exception:
+    HAS_STRIPE = False
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
