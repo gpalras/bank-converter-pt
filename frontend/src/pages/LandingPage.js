@@ -76,8 +76,8 @@ const LandingPage = ({ user }) => {
               <span className="gradient-text"> em Segundos</span>
             </h1>
             <p className="hero-subtitle" data-testid="hero-subtitle">
-              Solução portuguesa para converter PDFs bancários em planilhas estruturadas.
-              Otimizado para BPI, Millennium e Caixa Geral com categorização fiscal automática.
+              Solução portuguesa para converter PDFs bancários em folhas de cálculo estruturadas.
+              Optimizado para BPI, Millennium e Caixa Geral com categorização fiscal automática.
             </p>
             <div className="hero-actions">
               <Button 
