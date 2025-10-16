@@ -534,10 +534,18 @@ async def health():
 # Include router & middleware
 app.include_router(api_router)
 
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "https://bank-converter-pt.vercel.app",
+    "https://bank-converter-pt.onrender.com",
+    "http://localhost:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=origins,
     allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
