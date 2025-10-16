@@ -523,8 +523,9 @@ async def health():
     db_ok = False
     err = None
     try:
-        if db:
-            await db.command("ping")
+        # usa o client e evita truthiness em objetos Motor
+        if client is not None:
+            await client.admin.command("ping")
             db_ok = True
     except Exception as e:
         err = str(e)
