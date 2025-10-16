@@ -1,0 +1,292 @@
+*** Begin Patch
+*** Update File: backend/requirements.txt
+@@
+-emergentintegrations==0.1.0
+*** End Patch
+*** Begin Patch
+*** Update File: backend/server.py
+@@
+-SUBSCRIPTION_PLANS = {
+-    "free": {"name": "Gratuito", "pages_limit": 50, "price": 0.0, "currency": "eur"},
+-    "starter": {"name": "Inicial", "pages_limit": 400, "price": 30.0, "currency": "eur"},
+-    "pro": {"name": "Profissional", "pages_limit": 4000, "price": 99.0, "currency": "eur"}
+-}
++SUBSCRIPTION_PLANS = {
++    # 5 utilizações (conversões) gratuitas por mês
++    "free": {
++        "name": "Gratuito",
++        "conversions_limit": 5,
++        "pages_limit": None,
++        "price": 0.0,
++        "currency": "eur",
++    },
++    "starter": {"name": "Inicial", "pages_limit": 400, "price": 30.0, "currency": "eur"},
++    "pro": {"name": "Profissional", "pages_limit": 1000, "price": 60.0, "currency": "eur"},
++    "business": {"name": "Business", "pages_limit": 4000, "price": 99.0, "currency": "eur"},
++}
+@@
+-async def get_user_subscription(user_id: str):
+-    subscription = await db.subscriptions.find_one({"user_id": user_id, "status": "active"}, {"_id": 0})
+-    if not subscription:
+-        # Create free subscription
+-        subscription = {
+-            "id": str(uuid.uuid4()),
+-            "user_id": user_id,
+-            "plan_type": "free",
+-            "status": "active",
+-            "pages_limit": 50,
+-            "pages_used_this_month": 0,
+-            "current_period_start": datetime.now(timezone.utc).isoformat(),
+-            "current_period_end": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+-        }
+-        await db.subscriptions.insert_one(subscription)
+-    return subscription
++async def get_user_subscription(user_id: str):
++    """Obtem a subscrição ativa. Se não existir, cria a gratuita.
++    Repõe contadores no início de cada novo período mensal e faz backfill
++    dos novos campos de conversões quando necessário.
++    """
++    subscription = await db.subscriptions.find_one({"user_id": user_id, "status": "active"}, {"_id": 0})
++    if not subscription:
++        now = datetime.now(timezone.utc)
++        subscription = {
++            "id": str(uuid.uuid4()),
++            "user_id": user_id,
++            "plan_type": "free",
++            "status": "active",
++            "pages_limit": None,
++            "pages_used_this_month": 0,
++            "conversions_limit": 5,
++            "conversions_used_this_month": 0,
++            "current_period_start": now.isoformat(),
++            "current_period_end": (now + timedelta(days=30)).isoformat()
++        }
++        await db.subscriptions.insert_one(subscription)
++        return subscription
++
++    # Reset mensal se terminou o período atual
++    try:
++        period_end = datetime.fromisoformat(subscription["current_period_end"])
++    except Exception:
++        period_end = datetime.now(timezone.utc)
++    now = datetime.now(timezone.utc)
++    if now > period_end:
++        updates = {
++            "pages_used_this_month": 0,
++            "conversions_used_this_month": 0,
++            "current_period_start": now.isoformat(),
++            "current_period_end": (now + timedelta(days=30)).isoformat(),
++        }
++        await db.subscriptions.update_one({"id": subscription["id"]}, {"$set": updates})
++        subscription.update(updates)
++
++    # Backfill de campos novos
++    changed = False
++    if "conversions_limit" not in subscription:
++        subscription["conversions_limit"] = 5 if subscription.get("plan_type") == "free" else None
++        changed = True
++    if "conversions_used_this_month" not in subscription:
++        subscription["conversions_used_this_month"] = 0
++        changed = True
++    if changed:
++        await db.subscriptions.update_one(
++            {"id": subscription["id"]},
++            {"$set": {
++                "conversions_limit": subscription["conversions_limit"],
++                "conversions_used_this_month": subscription["conversions_used_this_month"],
++            }}
++        )
++
++    return subscription
+@@
+-    # Estimate pages (rough estimate: 1 page per 50KB)
+-    file_content = await file.read()
+-    estimated_pages = max(1, len(file_content) // (50 * 1024))
+-    
+-    if subscription["pages_used_this_month"] + estimated_pages > subscription["pages_limit"]:
+-        raise HTTPException(status_code=403, detail="Limite de páginas atingido. Faça upgrade do seu plano.")
++    # Ler o conteúdo uma única vez
++    file_content = await file.read()
++    from io import BytesIO
++    buffer = BytesIO(file_content)
++
++    # Estimativa antiga por páginas para planos pagos
++    estimated_pages = max(1, len(file_content) // (50 * 1024))
++
++    # FREE: limitamos por número de conversões; pagos: por páginas
++    if subscription.get("plan_type") == "free":
++        limit = subscription.get("conversions_limit", 5)
++        used = subscription.get("conversions_used_this_month", 0)
++        if used >= limit:
++            raise HTTPException(
++                status_code=403,
++                detail="Atingiu o limite de 5 utilizações gratuitas este mês. Escolha um plano para continuar."
++            )
++    else:
++        if subscription.get("pages_limit") is not None and +           subscription["pages_used_this_month"] + estimated_pages > subscription["pages_limit"]:
++            raise HTTPException(
++                status_code=403,
++                detail="Limite de páginas atingido para o seu plano. Faça upgrade para continuar."
++            )
+@@
+-    with open(file_path, "wb") as f:
+-        f.write(file_content)
++    # Gravar a partir do buffer
++    with open(file_path, "wb") as f:
++        f.write(buffer.getvalue())
+@@
+-        # Update subscription usage
+-        await db.subscriptions.update_one(
+-            {"id": subscription["id"]},
+-            {"$inc": {"pages_used_this_month": estimated_pages}}
+-        )
++        # Update subscription usage
++        if subscription.get("plan_type") == "free":
++            await db.subscriptions.update_one(
++                {"id": subscription["id"]},
++                {"$inc": {"conversions_used_this_month": 1}}
++            )
++        else:
++            await db.subscriptions.update_one(
++                {"id": subscription["id"]},
++                {"$inc": {"pages_used_this_month": estimated_pages}}
++            )
+*** End Patch
+*** Begin Patch
+*** Update File: frontend/public/index.html
+@@
+-        <title>Conversor Bancário PT</title>
+-        <!--
+-        These two scripts have been added for the testing, please do not edit or remove them
+-        -->
+-        <script src="https://unpkg.com/rrweb@latest/dist/rrweb.min.js"></script>
+-        <script src="https://d2adkz2s9zrlge.cloudfront.net/rrweb-recorder-20250919-1.js"></script>
+-        <!--
+-        These two scripts have been added for the Visual Edits, please do not edit or remove them
+-        -->
+-        <script>
+-            // Only load visual edit scripts when inside an iframe and visual edits are enabled
+-            if (window.self !== window.top && '%REACT_APP_ENABLE_VISUAL_EDITS%' === 'true') {
+-                // Load debug monitor script
+-            var visualEditDebugUrl = '%REACT_APP_VISUAL_EDIT_DEBUG_URL%';
+-            if (
+-                window.self !== window.top &&
+-                '%REACT_APP_ENABLE_VISUAL_EDITS%' === 'true' &&
+-                visualEditDebugUrl &&
+-                visualEditDebugUrl !== '%REACT_APP_VISUAL_EDIT_DEBUG_URL%'
+-            ) {
+-                // Load debug monitor script when explicitly configured
+-                var debugScript = document.createElement('script');
+-                debugScript.src = 'https://assets.emergent.sh/scripts/debug-monitor.js';
+-                debugScript.src = visualEditDebugUrl;
+-                document.head.appendChild(debugScript);
+-
+-                // Configure Tailwind
+-                window.tailwind = window.tailwind || {};
+-                tailwind.config = {
+-                    corePlugins: { preflight: false },
+-                };
+-
+-                // Load Tailwind CDN
+-                var tailwindScript = document.createElement('script');
+-                tailwindScript.src = 'https://cdn.tailwindcss.com';
+-                document.head.appendChild(tailwindScript);
+-            }
+-        </script>
++        <title>Conversor Bancário PT</title>
+*** End Patch
+*** Begin Patch
+*** Update File: frontend/src/pages/DashboardPage.js
+@@
+-  const usagePercentage = subscription
+-    ? (subscription.pages_used_this_month / subscription.pages_limit) * 100
+-    : 0;
++  const isFree = subscription?.plan_type === 'free';
++  const used = isFree ? (subscription?.conversions_used_this_month || 0)
++                      : (subscription?.pages_used_this_month || 0);
++  const limit = isFree ? (subscription?.conversions_limit ?? 5)
++                       : (subscription?.pages_limit || 0);
++  const usagePercentage = limit ? (used / limit) * 100 : 0;
+@@
+-              <CardDescription>Uso de páginas este mês</CardDescription>
++              <CardDescription>
++                {isFree ? 'Utilizações gratuitas este mês' : 'Páginas utilizadas este mês'}
++              </CardDescription>
+@@
+-                  <span className="usage-current">{subscription?.pages_used_this_month || 0}</span>
++                  <span className="usage-current">{used}</span>
+@@
+-                  <span className="usage-limit">{subscription?.pages_limit || 0}</span>
+-                  <span className="usage-label">páginas</span>
++                  <span className="usage-limit">{limit}</span>
++                  <span className="usage-label">{isFree ? 'utilizações' : 'páginas'}</span>
+*** End Patch
+*** Begin Patch
+*** Update File: frontend/src/pages/PricingPage.js
+@@
+-  const plans = [
+-    {
+-      id: 'free',
+-      name: 'Gratuito',
+-      price: 0,
+-      pages: 50,
+-      features: [
+-        '50 páginas por mês',
+-        'Exportação CSV e Excel'
+-      ]
+-    },
+-    {
+-      id: 'starter',
+-      name: 'Inicial',
+-      price: 30,
+-      pages: 400,
+-      features: [
+-        '400 páginas por mês',
+-        'Exportação CSV e Excel'
+-      ]
+-    },
+-    {
+-      id: 'pro',
+-      name: 'Profissional',
+-      price: 99,
+-      pages: 4000,
+-      features: [
+-        '4.000 páginas por mês',
+-        'Exportação CSV e Excel',
+-        'Categorização fiscal completa',
+-        'Suporte prioritário 24/7',
+-        'API de integração'
+-      ]
+-    }
+-  ];
++  const plans = [
++    { id: 'starter', name: 'Starter', price: 30, pages: 400, features: ['400 páginas / mês', 'Exportação CSV e Excel'] },
++    { id: 'pro', name: 'Professional', price: 60, pages: 1000, features: ['1000 páginas / mês', 'Exportação CSV e Excel'] },
++    { id: 'business', name: 'Business', price: 99, pages: 4000, features: ['4000 páginas / mês', 'Exportação CSV e Excel'] },
++    { id: 'enterprise', name: 'Enterprise', price: null, pages: null, features: ['Precisa de mais? Contacte-nos.'] },
++  ];
+@@
+-          <div className="pricing-hero">
++          <div className="pricing-hero">
+             <h1 className="pricing-title" data-testid="pricing-title">
+-              Escolha o plano ideal para si
++              Escolha o plano ideal para si
+             </h1>
+             <p className="pricing-subtitle" data-testid="pricing-subtitle">
+-              Comece gratuitamente e faça upgrade quando precisar de mais páginas.
++              As primeiras <strong>5 conversões por mês</strong> são gratuitas. Depois, escolha um plano.
+             </p>
+           </div>
+*** End Patch
+*** Begin Patch
+*** Update File: frontend/src/pages/LandingPage.js
+@@
+-            <div className="hero-badge">
+-              <Check size={16} />
+-              <span>50 páginas grátis por mês • Sem cartão de crédito</span>
+-            </div>
++            <div className="hero-badge">
++              <Check size={16} />
++              <span>5 conversões grátis por mês • Sem cartão de crédito</span>
++            </div>
+*** End Patch
